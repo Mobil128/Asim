@@ -17,7 +17,7 @@
   /* ── VERSİYA SİSTEMİ ──
      Faylı yenilədikcə APP_VERSION-u dəyişin (məs. "3.1").
      Versiya dəyişəndə səhifə keşdən deyil, serverdən yenidən yüklənir. */
-  var APP_VERSION = "5.0";
+  var APP_VERSION = "5.1";
   (function(){
     try{
       var params = new URLSearchParams(location.search);
@@ -1325,7 +1325,7 @@
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
 import {
-  getAuth, GoogleAuthProvider, signInWithRedirect, getRedirectResult,
+  getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult,
   signOut, onAuthStateChanged, setPersistence, browserLocalPersistence
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
 import { getDatabase, ref, get, set, onValue } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
@@ -1462,6 +1462,9 @@ function hideGate(){
 
 function handleAuthError(err){
   const code = (err && err.code) || '';
+  if(code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request'){
+    return; // istifadəçi özü bağladı — bu xəta deyil, sükutla geri qayıdırıq
+  }
   if(code === 'auth/unauthorized-domain'){
     setGateError('Domen icazəli deyil', 'Bu domen (' + location.hostname + ') Firebase-də icazəli deyil. Admin Firebase Console → Authentication → Settings → Authorized domains bölməsinə əlavə etməlidir.');
     return;
@@ -1469,14 +1472,26 @@ function handleAuthError(err){
   setGateError('Giriş alınmadı', (err && err.message) || code || 'Naməlum xəta');
 }
 
-// Popup əvəzinə redirect: GitHub Pages kimi xarici domenlərdə brauzerlər
-// (Safari ITP, Firefox ETP) popup ilə əsas səhifə arasında storage
-// paylaşımını bloklayır və giriş pəncərəsi açılıb dərhal bağlanır.
+// Əvvəlcə popup sınayırıq: səhifə heç yerə keçmir, ona görə bəzi mobil/OEM
+// brauzerlərin (məs. MIUI) tam səhifə yönləndirməsi zamanı IndexedDB-dəki
+// "gözlənilən giriş" işarəsini itirməsi (və girişin sükutla uğursuz olması)
+// bura təsir etmir. Popup açıla bilmirsə, tam səhifə yönləndirməsinə keçirik.
 async function doSignIn(){
   try{
     await setPersistence(auth, browserLocalPersistence);
-    await signInWithRedirect(auth, provider);
   }catch(err){
+    handleAuthError(err);
+    return;
+  }
+  try{
+    await signInWithPopup(auth, provider);
+  }catch(err){
+    const code = (err && err.code) || '';
+    if(code === 'auth/popup-blocked' || code === 'auth/operation-not-supported-in-this-environment'){
+      try{ await signInWithRedirect(auth, provider); }
+      catch(err2){ handleAuthError(err2); }
+      return;
+    }
     handleAuthError(err);
   }
 }
