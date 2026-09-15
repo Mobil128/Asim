@@ -17,7 +17,7 @@
   /* ── VERSİYA SİSTEMİ ──
      Faylı yenilədikcə APP_VERSION-u dəyişin (məs. "3.1").
      Versiya dəyişəndə səhifə keşdən deyil, serverdən yenidən yüklənir. */
-  var APP_VERSION = "3.0";
+  var APP_VERSION = "4.0";
   (function(){
     try{
       var params = new URLSearchParams(location.search);
@@ -81,6 +81,34 @@
   }
   .icon-btn:active{ transform:scale(.93); }
   .icon-btn.on{ background:var(--live); border-color:var(--live); }
+  .icon-btn.signed{ padding:0; overflow:hidden; border-color:var(--live); }
+  .icon-btn img{ width:100%; height:100%; object-fit:cover; border-radius:10px; display:block; }
+
+  /* ---- Account / sync ---- */
+  .account-row{ display:flex; align-items:center; gap:12px; }
+  .account-avatar{
+    width:42px; height:42px; border-radius:50%; background:var(--bg);
+    display:flex; align-items:center; justify-content:center;
+    font-size:1.05rem; font-weight:600; overflow:hidden; flex-shrink:0;
+    border:1px solid var(--line);
+  }
+  .account-avatar img{ width:100%; height:100%; object-fit:cover; display:block; }
+  .account-name{ font-weight:600; font-size:.92rem; }
+  .account-mail{ color:var(--muted); font-size:.75rem; word-break:break-all; }
+  .sync-line{
+    display:flex; align-items:center; gap:7px;
+    font-size:.74rem; color:var(--muted); margin-top:10px;
+  }
+  .sync-dot{ width:7px; height:7px; border-radius:50%; background:var(--muted); flex-shrink:0; }
+  .sync-dot.ok{ background:#16A34A; }
+  .sync-dot.busy{ background:#F59E0B; }
+  .sync-dot.err{ background:#DC2626; }
+  .btn-google{
+    flex:1; display:inline-flex; align-items:center; justify-content:center; gap:9px;
+    background:#fff; color:#3C4043; border:1px solid #DADCE0; border-radius:12px;
+    padding:11px; font-weight:600; font-size:.88rem; cursor:pointer; font-family:inherit;
+  }
+  .btn-google:active{ transform:scale(.98); }
 
   /* ---- Hero ---- */
   .hero{
@@ -396,6 +424,7 @@
   <div class="app-header">
     <div class="app-title display">Dərs Bələdçisi</div>
     <div class="header-actions">
+      <button class="icon-btn" id="userBtn" aria-label="Hesab">👤</button>
       <button class="icon-btn" id="themeBtn" aria-label="Tema">🌙</button>
       <button class="icon-btn" id="settingsBtn" aria-label="Ayarlar">⚙️</button>
     </div>
@@ -447,6 +476,23 @@
 <div class="modal-overlay hidden" id="settingsOverlay">
   <div class="modal">
     <div class="modal-header"><span>Ayarlar</span><button class="modal-close" id="closeSettings">✕</button></div>
+
+    <div class="settings-group-title">Hesab</div>
+    <div class="account-row">
+      <div class="account-avatar" id="accAvatar">👤</div>
+      <div style="flex:1; min-width:0">
+        <div class="account-name" id="accName">Daxil olmayıb</div>
+        <div class="account-mail" id="accMail">Məlumatlar yalnız bu cihazda saxlanılır</div>
+      </div>
+    </div>
+    <div class="sync-line"><span class="sync-dot" id="syncDot"></span><span id="syncText">Yoxlanılır…</span></div>
+    <div class="modal-actions">
+      <button class="btn-google" id="signInBtn">
+        <svg width="16" height="16" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+        Google ilə daxil ol
+      </button>
+      <button class="btn-secondary hidden" id="signOutBtn">Çıxış</button>
+    </div>
 
     <div class="settings-group-title">Ümumi</div>
     <div class="settings-row">
@@ -556,18 +602,28 @@
     catch(e){ return fallback; }
   }
   function saveJSON(key, val){ try{ localStorage.setItem(key, JSON.stringify(val)); }catch(e){} }
+
+  const UPDATED_KEY = 'sq_updated_v1';
+  let localUpdatedAt = loadJSON(UPDATED_KEY, 0);
+  // Hər lokal dəyişiklikdən sonra çağırılır: buludla sinxronlaşdırmanı tetikleyir.
+  function touchLocal(){
+    localUpdatedAt = Date.now();
+    saveJSON(UPDATED_KEY, localUpdatedAt);
+    if(typeof window.SQ_onLocalChange === 'function') window.SQ_onLocalChange();
+  }
+
   function loadSchedule(){
     let s = loadJSON(STORAGE_KEYS.schedule, null);
     if(!s){ s = JSON.parse(JSON.stringify(DEFAULT_SCHEDULE)); saveJSON(STORAGE_KEYS.schedule, s); }
     return s;
   }
-  function saveSchedule(){ saveJSON(STORAGE_KEYS.schedule, schedule); }
+  function saveSchedule(){ saveJSON(STORAGE_KEYS.schedule, schedule); touchLocal(); }
   function loadStatus(){ return loadJSON(STORAGE_KEYS.status, {}); }
-  function saveStatus(){ saveJSON(STORAGE_KEYS.status, statusMap); }
+  function saveStatus(){ saveJSON(STORAGE_KEYS.status, statusMap); touchLocal(); }
   function loadSettings(){
     return Object.assign({ duration:60, theme:'light', notifications:false }, loadJSON(STORAGE_KEYS.settings, {}));
   }
-  function saveSettings(){ saveJSON(STORAGE_KEYS.settings, settings); }
+  function saveSettings(){ saveJSON(STORAGE_KEYS.settings, settings); touchLocal(); }
 
   // ---- date helpers ----
   function pad(n){ return n.toString().padStart(2,"0"); }
@@ -684,6 +740,7 @@
   const statsSummaryEl = document.getElementById('statsSummary');
   const statsSubjectsEl = document.getElementById('statsSubjects');
   const themeBtn = document.getElementById('themeBtn');
+  const userBtn = document.getElementById('userBtn');
   const settingsBtn = document.getElementById('settingsBtn');
   const settingsOverlay = document.getElementById('settingsOverlay');
   const closeSettings = document.getElementById('closeSettings');
@@ -1064,12 +1121,22 @@
   });
 
   resetBtn.addEventListener('click', function(){
-    if(confirm('Bütün fərdi dəyişikliklər (cədvəl, qeydlər, ayarlar) silinəcək. Davam edilsin?')){
+    if(confirm('Bütün fərdi dəyişikliklər (cədvəl, qeydlər, ayarlar) silinəcək. Hesaba daxil olmusunuzsa, buluddakı nüsxə də silinir. Davam edilsin?')){
       localStorage.removeItem(STORAGE_KEYS.schedule);
       localStorage.removeItem(STORAGE_KEYS.status);
       localStorage.removeItem(STORAGE_KEYS.settings);
-      location.reload();
+      localStorage.removeItem(UPDATED_KEY);
+      if(typeof window.SQ_onReset === 'function'){
+        window.SQ_onReset().then(function(){ location.reload(); }, function(){ location.reload(); });
+      } else {
+        location.reload();
+      }
     }
+  });
+
+  userBtn.addEventListener('click', function(){
+    if(typeof window.SQ_signIn === 'function') window.SQ_signIn();
+    else settingsBtn.click();
   });
 
   closeLesson.addEventListener('click', closeLessonModal);
@@ -1142,12 +1209,58 @@
     }
   });
 
+  // ---- cloud sync bridge ----
+  // RTDB boş massivləri silir və massivi obyekt kimi qaytara bilir — hər iki formanı normallaşdırırıq.
+  function normalizeDayList(v){
+    if(Array.isArray(v)) return v.filter(Boolean);
+    if(v && typeof v==='object') return Object.keys(v).map(function(k){ return v[k]; }).filter(Boolean);
+    return [];
+  }
+
+  window.SQ = {
+    getSnapshot: function(){
+      return { schedule:schedule, status:statusMap, settings:settings, updatedAt:localUpdatedAt || Date.now() };
+    },
+    applySnapshot: function(data){
+      if(!data) return;
+      const s = {};
+      for(let i=0;i<7;i++){ s[i] = normalizeDayList(data.schedule && data.schedule[i]); }
+      schedule = s;
+      saveJSON(STORAGE_KEYS.schedule, schedule);
+
+      statusMap = data.status || {};
+      saveJSON(STORAGE_KEYS.status, statusMap);
+
+      settings = Object.assign({ duration:60, theme:'light', notifications:false }, data.settings || {});
+      saveJSON(STORAGE_KEYS.settings, settings);
+
+      localUpdatedAt = data.updatedAt || Date.now();
+      saveJSON(UPDATED_KEY, localUpdatedAt);
+
+      applyTheme();
+      renderSlow();
+      renderHero(new Date());
+    },
+    getUpdatedAt: function(){ return localUpdatedAt || 0; },
+    openSettings: function(){ settingsBtn.click(); }
+  };
+
   // ---- init ----
   applyTheme();
   renderSubjectDatalist();
   renderHero(new Date());
   renderSlow();
   if(verTagEl) verTagEl.textContent = 'versiya ' + APP_VERSION;
+
+  // Firebase modulu yüklənməsə (internet yoxdur / CDN əlçatmazdır) istifadəçi bunu görsün.
+  setTimeout(function(){
+    if(typeof window.SQ_signIn !== 'function'){
+      const dot = document.getElementById('syncDot');
+      const txt = document.getElementById('syncText');
+      if(dot) dot.className = 'sync-dot err';
+      if(txt) txt.textContent = 'Bulud xidmətinə qoşulmaq alınmadı — oflayn rejim';
+    }
+  }, 8000);
 
   setInterval(function(){ renderHero(new Date()); }, 1000);
   setInterval(function(){
@@ -1162,6 +1275,203 @@
     });
   }
 
+</script>
+
+<!-- ── Firebase: Google ilə giriş + bulud sinxronizasiyası ── -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+import {
+  getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult,
+  signOut, onAuthStateChanged, setPersistence, browserLocalPersistence
+} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+import { getDatabase, ref, get, set, onValue } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAo6Zf9wtqcfN-vZR5sW7lPtuVoJi-dShU",
+  authDomain: "asim-6a6be.firebaseapp.com",
+  databaseURL: "https://asim-6a6be-default-rtdb.firebaseio.com",
+  projectId: "asim-6a6be",
+  storageBucket: "asim-6a6be.firebasestorage.app",
+  messagingSenderId: "380678562413",
+  appId: "1:380678562413:web:8fe46bcc7feef710335564",
+  measurementId: "G-HETCS4FWE7"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getDatabase(app);
+const provider = new GoogleAuthProvider();
+provider.setCustomParameters({ prompt: 'select_account' });
+
+const userBtn   = document.getElementById('userBtn');
+const accAvatar = document.getElementById('accAvatar');
+const accName   = document.getElementById('accName');
+const accMail   = document.getElementById('accMail');
+const signInBtn = document.getElementById('signInBtn');
+const signOutBtn= document.getElementById('signOutBtn');
+const syncDot   = document.getElementById('syncDot');
+const syncText  = document.getElementById('syncText');
+
+// Popup standalone PWA-da (xüsusən iOS) işləmir — orada birbaşa redirect istifadə edirik.
+const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+
+let unsubscribe = null;
+let applyingRemote = false;
+let pushTimer = null;
+
+function pad2(n){ return n<10 ? '0'+n : ''+n; }
+function timeNow(){ const d=new Date(); return pad2(d.getHours())+':'+pad2(d.getMinutes()); }
+function dataRefFor(uid){ return ref(db, 'users/'+uid+'/data'); }
+
+function setSync(state, text){
+  syncDot.className = 'sync-dot' + (state ? ' '+state : '');
+  syncText.textContent = text;
+}
+
+function avatarNode(user){
+  if(user && user.photoURL){
+    const img = document.createElement('img');
+    img.src = user.photoURL;
+    img.alt = '';
+    img.referrerPolicy = 'no-referrer';
+    return img;
+  }
+  const initial = user && user.displayName ? user.displayName.trim().charAt(0).toUpperCase() : '👤';
+  return document.createTextNode(initial);
+}
+
+function renderUser(user){
+  accAvatar.replaceChildren(avatarNode(user));
+  userBtn.replaceChildren(avatarNode(user));
+  userBtn.classList.toggle('signed', !!user);
+  if(user){
+    accName.textContent = user.displayName || 'İstifadəçi';
+    accMail.textContent = user.email || '';
+    signInBtn.classList.add('hidden');
+    signOutBtn.classList.remove('hidden');
+  } else {
+    accName.textContent = 'Daxil olmayıb';
+    accMail.textContent = 'Məlumatlar yalnız bu cihazda saxlanılır';
+    signInBtn.classList.remove('hidden');
+    signOutBtn.classList.add('hidden');
+    setSync('', 'Buludla sinxronlaşdırılmır');
+  }
+}
+
+function applyRemote(data){
+  applyingRemote = true;
+  try{ window.SQ.applySnapshot(data); }
+  finally{ applyingRemote = false; }
+}
+
+function handleAuthError(err){
+  const code = (err && err.code) || '';
+  if(code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request'){
+    setSync('', 'Giriş ləğv edildi');
+    return;
+  }
+  if(code === 'auth/popup-blocked' || code === 'auth/operation-not-supported-in-this-environment'){
+    signInWithRedirect(auth, provider).catch(handleAuthError);
+    return;
+  }
+  if(code === 'auth/unauthorized-domain'){
+    setSync('err', 'Domen icazəli deyil');
+    alert('Bu domen Firebase-də icazəli deyil.\n\nFirebase Console → Authentication → Settings → Authorized domains bölməsinə əlavə edin:\n' + location.hostname);
+    return;
+  }
+  setSync('err', 'Giriş alınmadı');
+  alert('Giriş alınmadı: ' + ((err && err.message) || code));
+}
+
+async function doSignIn(){
+  try{
+    setSync('busy', 'Giriş edilir…');
+    await setPersistence(auth, browserLocalPersistence);
+    if(isStandalone){ await signInWithRedirect(auth, provider); return; }
+    await signInWithPopup(auth, provider);
+  }catch(err){
+    handleAuthError(err);
+  }
+}
+
+signInBtn.addEventListener('click', doSignIn);
+
+signOutBtn.addEventListener('click', async function(){
+  if(!confirm('Hesabdan çıxmaq istəyirsiniz? Məlumatlar bu cihazda qalacaq.')) return;
+  if(unsubscribe){ unsubscribe(); unsubscribe = null; }
+  try{ await signOut(auth); }catch(err){ setSync('err','Çıxış alınmadı'); }
+});
+
+window.SQ_signIn = function(){
+  if(auth.currentUser) window.SQ.openSettings();
+  else doSignIn();
+};
+
+// Lokal dəyişiklik → buluda yaz (debounce ilə).
+window.SQ_onLocalChange = function(){
+  const user = auth.currentUser;
+  if(!user || applyingRemote) return;
+  setSync('busy', 'Saxlanılır…');
+  clearTimeout(pushTimer);
+  pushTimer = setTimeout(function(){
+    set(dataRefFor(user.uid), window.SQ.getSnapshot())
+      .then(function(){ setSync('ok', 'Sinxronlaşdırıldı · '+timeNow()); })
+      .catch(function(err){ setSync('err', 'Saxlanmadı'); console.error(err); });
+  }, 700);
+};
+
+// Sıfırlama buluddakı nüsxəni də silir.
+window.SQ_onReset = function(){
+  const user = auth.currentUser;
+  if(!user) return Promise.resolve();
+  if(unsubscribe){ unsubscribe(); unsubscribe = null; }
+  clearTimeout(pushTimer);
+  return set(dataRefFor(user.uid), null);
+};
+
+renderUser(null);
+setSync('busy', 'Yoxlanılır…');
+getRedirectResult(auth).catch(handleAuthError);
+
+onAuthStateChanged(auth, async function(user){
+  if(unsubscribe){ unsubscribe(); unsubscribe = null; }
+  renderUser(user);
+  if(!user) return;
+
+  const dataRef = dataRefFor(user.uid);
+  setSync('busy', 'Sinxronlaşdırılır…');
+
+  // İlk birləşdirmə: hansı nüsxə daha təzədirsə, o qalır.
+  try{
+    const snap = await get(dataRef);
+    const local = window.SQ.getSnapshot();
+    if(!snap.exists()){
+      await set(dataRef, local);
+    } else {
+      const remote = snap.val() || {};
+      const rt = remote.updatedAt || 0, lt = local.updatedAt || 0;
+      if(rt > lt) applyRemote(remote);
+      else if(lt > rt) await set(dataRef, local);
+    }
+    setSync('ok', 'Sinxronlaşdırıldı · '+timeNow());
+  }catch(err){
+    setSync('err', 'Sinxronizasiya xətası');
+    console.error(err);
+  }
+
+  // Digər cihazlardakı dəyişikliklər üçün canlı dinləmə.
+  unsubscribe = onValue(dataRef, function(snap){
+    const remote = snap.val();
+    if(!remote) return;
+    if((remote.updatedAt || 0) > window.SQ.getUpdatedAt()){
+      applyRemote(remote);
+      setSync('ok', 'Yeniləndi · '+timeNow());
+    }
+  }, function(err){
+    setSync('err', 'Bağlantı xətası');
+    console.error(err);
+  });
+});
 </script>
 </body>
 </html>

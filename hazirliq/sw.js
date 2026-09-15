@@ -1,5 +1,5 @@
 // Kеşin versiyasını index.html-dəki APP_VERSION ilə birlikdə dəyişin.
-const CACHE_NAME = 'ders-cedveli-cache-v3-0';
+const CACHE_NAME = 'ders-cedveli-cache-v4-0';
 const ASSETS = ['./index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', (event) => {
@@ -20,6 +20,9 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
+  // Firebase (auth, realtime database) və digər xarici sorğulara toxunmuruq —
+  // keşlənmiş cavab canlı bağlantını sındırar.
+  if (new URL(event.request.url).origin !== self.location.origin) return;
   event.respondWith(
     fetch(event.request)
       .then((res) => {
