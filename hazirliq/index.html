@@ -1,0 +1,1167 @@
+<!DOCTYPE html>
+<html lang="az" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<meta name="theme-color" content="#E4572E" id="themeColorMeta">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Dərs Cədvəli">
+<link rel="manifest" href="./manifest.json">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<title>Həftəlik dərs bələdçisi</title>
+<script>
+  /* ── VERSİYA SİSTEMİ ──
+     Faylı yenilədikcə APP_VERSION-u dəyişin (məs. "3.1").
+     Versiya dəyişəndə səhifə keşdən deyil, serverdən yenidən yüklənir. */
+  var APP_VERSION = "3.0";
+  (function(){
+    try{
+      var params = new URLSearchParams(location.search);
+      if(params.get('v') !== APP_VERSION){
+        params.set('v', APP_VERSION);
+        location.replace(location.pathname + '?' + params.toString() + location.hash);
+      }
+    }catch(e){}
+  })();
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#F5F6FA;
+    --surface:#FFFFFF;
+    --ink:#1B1F2A;
+    --muted:#6B7280;
+    --line:#E4E7EF;
+    --live:#E4572E;
+    --radius:16px;
+  }
+  [data-theme="dark"]{
+    --bg:#14161C;
+    --surface:#1E212B;
+    --ink:#F1F2F6;
+    --muted:#8A90A0;
+    --line:#2A2E3A;
+    --live:#FF6B45;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:'IBM Plex Sans', system-ui, -apple-system, sans-serif;
+    line-height:1.45;
+    -webkit-font-smoothing:antialiased;
+    transition:background .2s ease, color .2s ease;
+  }
+  .wrap{
+    max-width:640px;
+    margin:0 auto;
+    padding:20px 18px 60px;
+  }
+  .display{ font-family:'Fraunces', Georgia, serif; }
+
+  /* ---- Header ---- */
+  .app-header{
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:14px;
+  }
+  .app-title{ font-size:1.1rem; font-weight:600; }
+  .header-actions{ display:flex; gap:8px; }
+  .icon-btn{
+    width:36px; height:36px; border-radius:11px;
+    border:1px solid var(--line); background:var(--surface);
+    display:flex; align-items:center; justify-content:center;
+    font-size:1rem; cursor:pointer; padding:0;
+  }
+  .icon-btn:active{ transform:scale(.93); }
+  .icon-btn.on{ background:var(--live); border-color:var(--live); }
+
+  /* ---- Hero ---- */
+  .hero{
+    background:var(--surface);
+    border-radius:22px;
+    padding:26px 22px;
+    box-shadow:0 1px 2px rgba(20,20,40,.05), 0 10px 28px rgba(20,20,40,.05);
+    border:1px solid var(--line);
+  }
+  .hero-top{
+    display:flex; align-items:flex-end; justify-content:space-between;
+    gap:12px; flex-wrap:wrap;
+  }
+  .clock{
+    font-size:clamp(2.2rem, 9vw, 3rem);
+    font-weight:600;
+    font-variant-numeric:tabular-nums;
+    letter-spacing:-0.01em;
+    line-height:1;
+  }
+  .day-label{ color:var(--muted); font-size:.92rem; margin-top:6px; }
+
+  .status{
+    margin-top:20px;
+    display:flex; gap:14px; align-items:flex-start;
+    padding:16px 16px 16px 14px;
+    border-radius:14px;
+    background:var(--bg);
+    border-left:4px solid var(--sc, var(--muted));
+  }
+  .status .dot{
+    width:11px; height:11px; border-radius:50%;
+    margin-top:6px; flex-shrink:0; position:relative;
+  }
+  .status .dot.live::before{
+    content:""; position:absolute; inset:-5px; border-radius:50%;
+    background:inherit; opacity:.35;
+  }
+  @media (prefers-reduced-motion: no-preference){
+    .status .dot.live::before{ animation:pulse 1.8s ease-out infinite; }
+  }
+  @keyframes pulse{
+    0%{ transform:scale(.6); opacity:.45; }
+    100%{ transform:scale(2.1); opacity:0; }
+  }
+  .dot.free{ background:var(--muted); }
+  .status-title{ font-weight:600; font-size:1.02rem; }
+  .status-sub{ color:var(--muted); font-size:.88rem; margin-top:3px; }
+  .status-sub strong{ color:var(--ink); font-weight:600; font-variant-numeric:tabular-nums; }
+  .progress-track{
+    height:6px; border-radius:999px; background:var(--line);
+    overflow:hidden; margin-top:10px; max-width:260px;
+  }
+  .progress-fill{ height:100%; border-radius:999px; transition:width 1s linear; }
+
+  .assumption{ margin-top:12px; font-size:.76rem; color:var(--muted); }
+
+  /* ---- Day scroller ---- */
+  .day-scroller{
+    display:flex; gap:8px; overflow-x:auto;
+    padding:16px 2px 4px; scrollbar-width:none;
+  }
+  .day-scroller::-webkit-scrollbar{ display:none; }
+  .day-chip{
+    flex:0 0 auto; min-width:50px; padding:8px 4px;
+    border-radius:12px; background:var(--surface); border:1px solid var(--line);
+    text-align:center; font-size:.76rem; color:var(--muted); cursor:pointer;
+  }
+  .day-chip .dow{ font-weight:600; color:var(--ink); }
+  .day-chip .num{ font-size:.68rem; margin-top:2px; }
+  .day-chip.active{ background:var(--live); border-color:var(--live); }
+  .day-chip.active .dow, .day-chip.active .num{ color:#fff; }
+  .day-chip.is-today:not(.active){ box-shadow:inset 0 0 0 2px var(--live); }
+
+  /* ---- Tabs ---- */
+  .tabs{
+    display:flex; gap:4px; margin:16px 2px 16px;
+    background:var(--surface); border:1px solid var(--line);
+    border-radius:12px; padding:4px;
+  }
+  .tab{
+    flex:1; border:none; background:none; padding:9px 4px;
+    border-radius:9px; font-size:.83rem; font-weight:600;
+    color:var(--muted); cursor:pointer; font-family:inherit;
+  }
+  .tab.active{ background:var(--live); color:#fff; }
+  .tab-panel.hidden{ display:none; }
+
+  .section-title{
+    font-family:'Fraunces', serif; font-size:1.25rem; font-weight:600;
+    margin:0 0 14px 4px;
+  }
+  .section-title-row{
+    display:flex; align-items:center; justify-content:space-between;
+    margin:0 4px 14px;
+  }
+  .chip-btn{
+    font-size:.76rem; padding:6px 12px; border-radius:999px;
+    border:1px solid var(--line); background:var(--surface); color:var(--ink);
+    cursor:pointer; font-family:inherit;
+  }
+  .chip-btn.on{ background:var(--live); border-color:var(--live); color:#fff; }
+
+  /* ---- Today agenda rows (Home tab) ---- */
+  .today-head-row{
+    display:flex; align-items:center; justify-content:space-between;
+    margin:0 4px 10px;
+  }
+  .today-head-label{ font-weight:600; font-size:.92rem; color:var(--muted); }
+  .tlesson{
+    display:flex; align-items:center; gap:10px;
+    background:var(--surface); border:1px solid var(--line);
+    border-radius:14px; padding:12px 14px; margin-bottom:8px;
+  }
+  .tlesson .ticon{
+    font-size:1.2rem; width:34px; height:34px; border-radius:10px;
+    display:flex; align-items:center; justify-content:center; flex-shrink:0;
+  }
+  .tlesson .tinfo{ flex:1; min-width:0; }
+  .tlesson .tname{ font-weight:600; font-size:.92rem; }
+  .tlesson .ttime{ color:var(--muted); font-size:.76rem; margin-top:1px; }
+  .tlesson .tstatus{ flex-shrink:0; }
+
+  .status-pill{
+    font-size:.68rem; padding:5px 10px; border-radius:999px;
+    font-weight:600; white-space:nowrap; display:inline-block;
+  }
+  .status-pill.upcoming{ background:var(--bg); color:var(--muted); }
+  .status-pill.active{ background:#FEE2D5; color:var(--live); }
+  [data-theme="dark"] .status-pill.active{ background:rgba(255,107,69,.18); }
+  .status-pill.done{ background:#DCFCE7; color:#15803D; cursor:pointer; }
+  [data-theme="dark"] .status-pill.done{ background:rgba(21,128,61,.28); color:#4ADE80; }
+  .status-pill.missed{ background:#FEE2E2; color:#B91C1C; cursor:pointer; }
+  [data-theme="dark"] .status-pill.missed{ background:rgba(185,28,28,.28); color:#F87171; }
+  .mark-btns{ display:flex; gap:6px; }
+  .mark-btns button{
+    width:27px; height:27px; border-radius:8px; border:1px solid var(--line);
+    background:var(--bg); cursor:pointer; font-size:.8rem; line-height:1; color:var(--ink);
+  }
+  .mark-btns button:active{ transform:scale(.9); }
+
+  /* ---- Day cards (Schedule tab) ---- */
+  .day-card{
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:16px 18px 14px;
+    margin-bottom:12px;
+    transition:transform .15s ease;
+  }
+  .day-card.today{
+    border-color:var(--live);
+    box-shadow:0 0 0 3px rgba(228,87,46,.08);
+    transform:scale(1.012);
+  }
+  .day-header{ display:flex; justify-content:space-between; align-items:flex-start; }
+  .day-name{ font-family:'Fraunces', serif; font-weight:600; font-size:1.06rem; }
+  .day-sub{ color:var(--muted); font-size:.76rem; margin-top:2px; }
+  .today-tag{
+    font-size:.7rem; background:var(--live); color:#fff;
+    padding:3px 10px; border-radius:999px; white-space:nowrap;
+  }
+
+  .timeline{
+    position:relative; height:30px; background:var(--bg);
+    border-radius:8px; margin:14px 0 6px;
+  }
+  .tl-block{
+    position:absolute; top:4px; bottom:4px;
+    border-radius:6px; min-width:3px;
+  }
+  .tl-now{
+    position:absolute; top:-3px; bottom:-3px; width:2px;
+    background:var(--live); border-radius:1px;
+    box-shadow:0 0 6px var(--live);
+  }
+  .tl-ticks{
+    display:flex; justify-content:space-between;
+    font-size:.64rem; color:var(--muted); padding:0 1px 8px;
+  }
+
+  .lessons{ display:flex; flex-direction:column; gap:6px; }
+  .lesson-row{
+    display:flex; align-items:center; gap:8px; font-size:.87rem;
+  }
+  .lesson-row.muted{ color:var(--muted); font-style:italic; }
+  .lesson-row .licon{ font-size:.95rem; flex-shrink:0; }
+  .lesson-row .ltime{
+    font-variant-numeric:tabular-nums; color:var(--muted);
+    width:42px; flex-shrink:0;
+  }
+  .lesson-row .lsubject{ flex:1; min-width:0; }
+  .lesson-row .lstatus-wrap{ flex-shrink:0; }
+  .lesson-edit-icons{ display:none; gap:4px; margin-left:4px; flex-shrink:0; }
+  .edit-on .lesson-edit-icons{ display:flex; }
+  .lesson-edit-icons button{
+    border:none; background:none; cursor:pointer; font-size:.82rem;
+    color:var(--muted); padding:2px 3px;
+  }
+  .add-lesson-btn{
+    display:none; margin-top:8px; width:100%; padding:8px;
+    border:1px dashed var(--line); border-radius:10px; background:none;
+    color:var(--muted); font-size:.78rem; cursor:pointer; font-family:inherit;
+  }
+  .edit-on .add-lesson-btn{ display:block; }
+
+  /* ---- Legend ---- */
+  .legend{
+    display:flex; flex-wrap:wrap; gap:12px;
+    margin:18px 4px 0; font-size:.82rem; color:var(--muted);
+  }
+  .legend span{ display:inline-flex; align-items:center; gap:5px; }
+
+  /* ---- Stats tab ---- */
+  .stats-summary{ display:flex; gap:10px; margin-bottom:18px; }
+  .stat-box{
+    flex:1; background:var(--surface); border:1px solid var(--line);
+    border-radius:14px; padding:14px; text-align:center;
+  }
+  .stat-box .num{ font-family:'Fraunces', serif; font-size:1.55rem; font-weight:600; }
+  .stat-box .lbl{ color:var(--muted); font-size:.7rem; margin-top:2px; }
+  .stats-progress{
+    height:10px; border-radius:999px; background:var(--line);
+    overflow:hidden; margin-bottom:6px;
+  }
+  .stats-progress .fill{ height:100%; background:var(--live); transition:width .4s ease; }
+  .stats-progress-lbl{ text-align:center; color:var(--muted); font-size:.78rem; margin:0 0 20px; }
+  .subject-bar-row{ margin-bottom:11px; }
+  .subject-bar-row .lbl-row{ display:flex; justify-content:space-between; font-size:.82rem; margin-bottom:4px; }
+  .subject-bar-track{ height:8px; border-radius:999px; background:var(--line); overflow:hidden; }
+  .subject-bar-fill{ height:100%; border-radius:999px; transition:width .4s ease; }
+
+  /* ---- Modal ---- */
+  .modal-overlay{
+    position:fixed; inset:0; background:rgba(10,12,20,.5);
+    display:flex; align-items:flex-end; justify-content:center; z-index:50;
+    padding:0;
+  }
+  .modal-overlay.hidden{ display:none; }
+  .modal{
+    background:var(--surface); width:100%; max-width:480px;
+    border-radius:20px 20px 0 0; padding:20px 20px 28px;
+    max-height:88vh; overflow-y:auto;
+  }
+  @media (min-width:560px){
+    .modal-overlay{ align-items:center; padding:20px; }
+    .modal{ border-radius:20px; }
+  }
+  .modal-header{
+    display:flex; justify-content:space-between; align-items:center;
+    font-weight:600; font-size:1.02rem; margin-bottom:14px;
+  }
+  .modal-close{ border:none; background:none; font-size:1.1rem; cursor:pointer; color:var(--muted); }
+  .modal label{ display:block; font-size:.76rem; color:var(--muted); margin:14px 0 4px; }
+  .modal label:first-of-type{ margin-top:0; }
+  .modal input[type=text], .modal input[type=time], .modal input[type=number]{
+    width:100%; padding:9px 10px; border-radius:10px;
+    border:1px solid var(--line); background:var(--bg); color:var(--ink);
+    font-family:inherit; font-size:.9rem;
+  }
+  .settings-row{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:11px 0; border-bottom:1px solid var(--line); font-size:.86rem; gap:10px;
+  }
+  .settings-row:last-of-type{ border-bottom:none; }
+  .settings-row select{
+    font-family:inherit; font-size:.86rem; padding:6px 10px;
+    border-radius:8px; border:1px solid var(--line); background:var(--bg); color:var(--ink);
+  }
+  .switch{ position:relative; width:42px; height:24px; flex-shrink:0; }
+  .switch input{ opacity:0; width:0; height:0; }
+  .switch .slider{
+    position:absolute; inset:0; background:var(--line);
+    border-radius:999px; cursor:pointer; transition:.2s;
+  }
+  .switch .slider::before{
+    content:""; position:absolute; width:18px; height:18px; left:3px; top:3px;
+    background:#fff; border-radius:50%; transition:.2s;
+  }
+  .switch input:checked + .slider{ background:var(--live); }
+  .switch input:checked + .slider::before{ transform:translateX(18px); }
+
+  .settings-group-title{
+    font-size:.72rem; text-transform:uppercase; letter-spacing:.04em;
+    color:var(--muted); margin:18px 0 2px; font-weight:600;
+  }
+  .settings-group-title:first-child{ margin-top:0; }
+  .modal-actions{ display:flex; gap:10px; margin-top:18px; }
+  .btn-primary{
+    flex:1; background:var(--live); color:#fff; border:none; border-radius:12px;
+    padding:11px; font-weight:600; font-size:.88rem; cursor:pointer; font-family:inherit;
+  }
+  .btn-secondary{
+    flex:1; background:var(--bg); color:var(--ink); border:1px solid var(--line);
+    border-radius:12px; padding:11px; font-weight:600; font-size:.88rem;
+    cursor:pointer; font-family:inherit;
+  }
+  .btn-danger{
+    background:none; color:#DC2626; border:1px solid #DC2626; border-radius:12px;
+    padding:11px 16px; font-weight:600; font-size:.84rem; cursor:pointer; font-family:inherit;
+  }
+  .hidden-input{ display:none; }
+  .hidden{ display:none !important; }
+
+  .foot-note{
+    text-align:center; color:var(--muted); font-size:.74rem; margin-top:24px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="app-header">
+    <div class="app-title display">Dərs Bələdçisi</div>
+    <div class="header-actions">
+      <button class="icon-btn" id="themeBtn" aria-label="Tema">🌙</button>
+      <button class="icon-btn" id="settingsBtn" aria-label="Ayarlar">⚙️</button>
+    </div>
+  </div>
+
+  <div class="hero">
+    <div class="hero-top">
+      <div>
+        <div class="clock display" id="clock">--:--:--</div>
+        <div class="day-label" id="dayLabel">—</div>
+      </div>
+    </div>
+    <div class="status" id="status"></div>
+    <div class="assumption" id="assumptionLine"></div>
+  </div>
+
+  <div class="day-scroller" id="dayScroller"></div>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="home">Ana səhifə</button>
+    <button class="tab" data-tab="schedule">Cədvəl</button>
+    <button class="tab" data-tab="stats">Statistika</button>
+  </div>
+
+  <div class="tab-panel" id="panel-home">
+    <div id="todayAgenda"></div>
+  </div>
+
+  <div class="tab-panel hidden" id="panel-schedule">
+    <div class="section-title-row">
+      <div class="section-title">Həftə üzrə cədvəl</div>
+      <button class="chip-btn" id="editModeBtn">✏️ Redaktə</button>
+    </div>
+    <div id="agenda"></div>
+    <div class="legend" id="legend"></div>
+  </div>
+
+  <div class="tab-panel hidden" id="panel-stats">
+    <div class="section-title">Bu həftə</div>
+    <div class="stats-summary" id="statsSummary"></div>
+    <div id="statsSubjects"></div>
+  </div>
+
+  <div class="foot-note">Cədvəl paylaşılan məlumatlar əsasında tərtib olunub.<br><span id="verTag"></span></div>
+
+</div>
+
+<!-- Settings modal -->
+<div class="modal-overlay hidden" id="settingsOverlay">
+  <div class="modal">
+    <div class="modal-header"><span>Ayarlar</span><button class="modal-close" id="closeSettings">✕</button></div>
+
+    <div class="settings-group-title">Ümumi</div>
+    <div class="settings-row">
+      <span>Standart dərs müddəti</span>
+      <select id="durationSelect">
+        <option value="30">30 dəqiqə</option>
+        <option value="45">45 dəqiqə</option>
+        <option value="60">60 dəqiqə</option>
+        <option value="90">90 dəqiqə</option>
+      </select>
+    </div>
+    <div class="settings-row">
+      <span>Bildirişlər (10 dəq / başlanışda)</span>
+      <label class="switch"><input type="checkbox" id="notifToggle"><span class="slider"></span></label>
+    </div>
+
+    <div class="settings-group-title">Cədvəl məlumatları</div>
+    <div class="settings-row">
+      <span>Cədvəli ixrac et (JSON)</span>
+      <button class="chip-btn" id="exportBtn">Yüklə</button>
+    </div>
+    <div class="settings-row">
+      <span>Cədvəli idxal et (JSON)</span>
+      <button class="chip-btn" id="importBtn">Seç</button>
+    </div>
+    <div class="settings-row">
+      <span>Bütün fərdi dəyişiklikləri sıfırla</span>
+      <button class="btn-danger" id="resetBtn">Sıfırla</button>
+    </div>
+
+    <input type="file" id="importInput" accept="application/json" class="hidden-input">
+  </div>
+</div>
+
+<!-- Lesson add/edit modal -->
+<div class="modal-overlay hidden" id="lessonOverlay">
+  <div class="modal">
+    <div class="modal-header"><span id="lessonModalTitle">Dərs əlavə et</span><button class="modal-close" id="closeLesson">✕</button></div>
+    <label for="lfSubject">Fənn</label>
+    <input type="text" id="lfSubject" list="subjectList" placeholder="Məsələn, Riyaziyyat">
+    <datalist id="subjectList"></datalist>
+    <label for="lfTime">Vaxt</label>
+    <input type="time" id="lfTime">
+    <label for="lfDuration">Müddət (dəqiqə)</label>
+    <input type="number" id="lfDuration" min="10" step="5">
+    <div class="modal-actions">
+      <button class="btn-danger hidden" id="deleteLessonBtn">Sil</button>
+      <button class="btn-primary" id="saveLessonBtn">Yadda saxla</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const STORAGE_KEYS = { schedule:'sq_schedule_v1', status:'sq_status_v1', settings:'sq_settings_v1' };
+
+  const DAY_NAMES = {
+    0:{ name:"Bazar",            alt:"Bazar",           short:"B"   },
+    1:{ name:"Bazar ertəsi",     alt:"Birinci gün",     short:"B.e" },
+    2:{ name:"Çərşənbə axşamı",  alt:"İkinci gün",      short:"Ç.a" },
+    3:{ name:"Çərşənbə",         alt:"Üçüncü gün",      short:"Ç"   },
+    4:{ name:"Cümə axşamı",      alt:"Dördüncü gün",    short:"C.a" },
+    5:{ name:"Cümə",             alt:"Cümə",            short:"C"   },
+    6:{ name:"Şənbə",            alt:"Altıncı gün",     short:"Ş"   },
+  };
+
+  const DEFAULT_SCHEDULE = {
+    "0":[],
+    "1":[{ id:"l1", time:"08:00", subject:"Cəbr (Riyaziyyat)", duration:60 },
+         { id:"l2", time:"13:30", subject:"İngilis dili", duration:60 }],
+    "2":[{ id:"l3", time:"09:00", subject:"Fizika", duration:60 },
+         { id:"l4", time:"17:00", subject:"Azərbaycan dili", duration:60 }],
+    "3":[{ id:"l5", time:"08:00", subject:"Riyaziyyat", duration:60 },
+         { id:"l6", time:"16:00", subject:"İnformatika", duration:60 }],
+    "4":[{ id:"l7", time:"08:00", subject:"Riyaziyyat", duration:60 },
+         { id:"l8", time:"10:30", subject:"Fizika", duration:60 },
+         { id:"l9", time:"13:30", subject:"İngilis dili", duration:60 },
+         { id:"l10", time:"17:00", subject:"Azərbaycan dili", duration:60 }],
+    "5":[],
+    "6":[{ id:"l11", time:"09:00", subject:"İnformatika", duration:60 },
+         { id:"l12", time:"14:30", subject:"Fizika", duration:60 },
+         { id:"l13", time:"17:00", subject:"Azərbaycan dili", duration:60 }],
+  };
+
+  const SUBJECT_META = [
+    { label:"Riyaziyyat",      color:"#3B5BDB", icon:"📐", test:function(s){ return /riyaz|cəbr/i.test(s); } },
+    { label:"Fizika",          color:"#E8590C", icon:"⚛️", test:function(s){ return /fizika/i.test(s); } },
+    { label:"Azərbaycan dili", color:"#9C36B5", icon:"📖", test:function(s){ return /azərbaycan/i.test(s); } },
+    { label:"İnformatika",     color:"#0CA678", icon:"💻", test:function(s){ return /informatika/i.test(s); } },
+    { label:"İngilis dili",    color:"#F08C00", icon:"🇬🇧", test:function(s){ return /ingilis/i.test(s); } },
+  ];
+
+  const RANGE_START = 7*60+30, RANGE_END = 19*60+30, RANGE_TOTAL = RANGE_END-RANGE_START;
+
+  // ---- state ----
+  let schedule = loadSchedule();
+  let statusMap = loadStatus();
+  let settings = loadSettings();
+  let selectedDate = new Date();
+  let editMode = false;
+  let currentTab = 'home';
+  let editingLessonRef = null;
+  let notifiedKeys = new Set();
+
+  // ---- storage helpers ----
+  function loadJSON(key, fallback){
+    try{ const raw = localStorage.getItem(key); return raw ? JSON.parse(raw) : fallback; }
+    catch(e){ return fallback; }
+  }
+  function saveJSON(key, val){ try{ localStorage.setItem(key, JSON.stringify(val)); }catch(e){} }
+  function loadSchedule(){
+    let s = loadJSON(STORAGE_KEYS.schedule, null);
+    if(!s){ s = JSON.parse(JSON.stringify(DEFAULT_SCHEDULE)); saveJSON(STORAGE_KEYS.schedule, s); }
+    return s;
+  }
+  function saveSchedule(){ saveJSON(STORAGE_KEYS.schedule, schedule); }
+  function loadStatus(){ return loadJSON(STORAGE_KEYS.status, {}); }
+  function saveStatus(){ saveJSON(STORAGE_KEYS.status, statusMap); }
+  function loadSettings(){
+    return Object.assign({ duration:60, theme:'light', notifications:false }, loadJSON(STORAGE_KEYS.settings, {}));
+  }
+  function saveSettings(){ saveJSON(STORAGE_KEYS.settings, settings); }
+
+  // ---- date helpers ----
+  function pad(n){ return n.toString().padStart(2,"0"); }
+  function toMin(t){ const p=t.split(":"); return parseInt(p[0],10)*60+parseInt(p[1],10); }
+  function startOfDay(d){ const r=new Date(d); r.setHours(0,0,0,0); return r; }
+  function addDays(d,n){ const r=new Date(d); r.setDate(r.getDate()+n); return r; }
+  function dateISO(d){ return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate()); }
+  function sameDate(a,b){ return dateISO(a)===dateISO(b); }
+  function getWeekMonday(d){ const day=d.getDay(); const diff = day===0? -6 : 1-day; return addDays(d, diff); }
+  function dateForDayIdx(idx, referenceNow){
+    const monday = getWeekMonday(startOfDay(referenceNow));
+    const offset = idx===0 ? 6 : idx-1;
+    return addDays(monday, offset);
+  }
+  function lessonDateTime(dateObj, timeStr){
+    const p = timeStr.split(":");
+    const d = new Date(dateObj);
+    d.setHours(parseInt(p[0],10), parseInt(p[1],10), 0, 0);
+    return d;
+  }
+  function fmtHM(d){ return pad(d.getHours())+":"+pad(d.getMinutes()); }
+  function formatCountdown(sec){
+    sec = Math.max(0, Math.round(sec));
+    const days = Math.floor(sec/86400);
+    const h = Math.floor((sec%86400)/3600);
+    const m = Math.floor((sec%3600)/60);
+    const s = sec%60;
+    if(days>0) return days+" gün "+h+" saat";
+    return pad(h)+":"+pad(m)+":"+pad(s);
+  }
+
+  function meta(subject){
+    for(let i=0;i<SUBJECT_META.length;i++){ if(SUBJECT_META[i].test(subject)) return SUBJECT_META[i]; }
+    return { label:subject, color:"#8892A0", icon:"📚" };
+  }
+
+  function nextLessonId(){
+    let max = 0;
+    Object.keys(schedule).forEach(function(k){
+      (schedule[k]||[]).forEach(function(l){
+        const m = /l(\d+)/.exec(l.id||'');
+        if(m) max = Math.max(max, parseInt(m[1],10));
+      });
+    });
+    return 'l'+(max+1);
+  }
+
+  // ---- status ----
+  function getManualStatus(dISO, lessonId){
+    return (statusMap[dISO] && statusMap[dISO][lessonId]) || null;
+  }
+  function setManualStatus(dISO, lessonId, status){
+    if(!statusMap[dISO]) statusMap[dISO] = {};
+    if(status===null){
+      delete statusMap[dISO][lessonId];
+      if(Object.keys(statusMap[dISO]).length===0) delete statusMap[dISO];
+    } else {
+      statusMap[dISO][lessonId] = status;
+    }
+    saveStatus();
+  }
+  function computeLessonState(dateObj, lesson, now){
+    const dISO = dateISO(dateObj);
+    const manual = getManualStatus(dISO, lesson.id);
+    if(manual) return manual;
+    const start = lessonDateTime(dateObj, lesson.time);
+    const end = new Date(start.getTime() + (lesson.duration || settings.duration || 60)*60000);
+    if(now>=start && now<end) return 'active';
+    if(now<start) return 'upcoming';
+    return 'unmarked-past';
+  }
+
+  function statusControlHTML(state, dayIdx, lessonId){
+    if(state==='active') return '<span class="status-pill active">canlı</span>';
+    if(state==='upcoming') return '<span class="status-pill upcoming">gözlənilir</span>';
+    if(state==='done') return '<span class="status-pill done" data-role="reset" data-day="'+dayIdx+'" data-id="'+lessonId+'">✓ Tamamlandı</span>';
+    if(state==='missed') return '<span class="status-pill missed" data-role="reset" data-day="'+dayIdx+'" data-id="'+lessonId+'">⚠ Buraxılıb</span>';
+    return '<div class="mark-btns">'+
+      '<button data-role="mark" data-act="done" data-day="'+dayIdx+'" data-id="'+lessonId+'" title="Tamamlandı">✓</button>'+
+      '<button data-role="mark" data-act="missed" data-day="'+dayIdx+'" data-id="'+lessonId+'" title="Buraxılıb">✕</button>'+
+      '</div>';
+  }
+
+  // ---- global "current/next lesson" status for hero ----
+  function getGlobalStatus(now){
+    for(let off=0; off<=7; off++){
+      const dayDate = addDays(startOfDay(now), off);
+      const idx = dayDate.getDay();
+      const list = (schedule[idx]||[]).slice().sort(function(a,b){ return toMin(a.time)-toMin(b.time); });
+      for(let i=0;i<list.length;i++){
+        const l = list[i];
+        const start = lessonDateTime(dayDate, l.time);
+        const end = new Date(start.getTime() + (l.duration||settings.duration||60)*60000);
+        if(off===0 && now>=start && now<end){
+          return { type:'active', lesson:l, dayDate:dayDate, start:start, end:end };
+        }
+        if(start>now){
+          return { type:'upcoming', lesson:l, dayDate:dayDate, start:start };
+        }
+      }
+    }
+    return { type:'none' };
+  }
+
+  // ---- DOM refs ----
+  const clockEl = document.getElementById('clock');
+  const dayLabelEl = document.getElementById('dayLabel');
+  const statusEl = document.getElementById('status');
+  const assumptionEl = document.getElementById('assumptionLine');
+  const dayScrollerEl = document.getElementById('dayScroller');
+  const todayAgendaEl = document.getElementById('todayAgenda');
+  const agendaEl = document.getElementById('agenda');
+  const legendEl = document.getElementById('legend');
+  const statsSummaryEl = document.getElementById('statsSummary');
+  const statsSubjectsEl = document.getElementById('statsSubjects');
+  const themeBtn = document.getElementById('themeBtn');
+  const settingsBtn = document.getElementById('settingsBtn');
+  const settingsOverlay = document.getElementById('settingsOverlay');
+  const closeSettings = document.getElementById('closeSettings');
+  const durationSelect = document.getElementById('durationSelect');
+  const notifToggle = document.getElementById('notifToggle');
+  const exportBtn = document.getElementById('exportBtn');
+  const importBtn = document.getElementById('importBtn');
+  const importInput = document.getElementById('importInput');
+  const resetBtn = document.getElementById('resetBtn');
+  const editModeBtn = document.getElementById('editModeBtn');
+  const lessonOverlay = document.getElementById('lessonOverlay');
+  const closeLesson = document.getElementById('closeLesson');
+  const lessonModalTitle = document.getElementById('lessonModalTitle');
+  const lfSubject = document.getElementById('lfSubject');
+  const lfTime = document.getElementById('lfTime');
+  const lfDuration = document.getElementById('lfDuration');
+  const deleteLessonBtn = document.getElementById('deleteLessonBtn');
+  const saveLessonBtn = document.getElementById('saveLessonBtn');
+  const subjectListEl = document.getElementById('subjectList');
+  const verTagEl = document.getElementById('verTag');
+  const themeColorMeta = document.getElementById('themeColorMeta');
+
+  // ---- rendering ----
+  function renderHero(now){
+    clockEl.textContent = pad(now.getHours())+":"+pad(now.getMinutes())+":"+pad(now.getSeconds());
+    const dn = DAY_NAMES[now.getDay()];
+    dayLabelEl.textContent = dn.name+" · "+dn.alt;
+
+    const st = getGlobalStatus(now);
+    if(st.type==='active'){
+      const m = meta(st.lesson.subject);
+      const totalMs = st.end-st.start;
+      const elapsedMs = now-st.start;
+      const pct = Math.min(100, Math.round(elapsedMs/totalMs*100));
+      const remainSec = (st.end-now)/1000;
+      statusEl.style.setProperty('--sc', m.color);
+      statusEl.innerHTML =
+        '<div class="dot live" style="background:'+m.color+'"></div>'+
+        '<div><div class="status-title">'+m.icon+' Hazırda dərsdə: <strong>'+st.lesson.subject+'</strong></div>'+
+        '<div class="status-sub">'+fmtHM(st.start)+'–'+fmtHM(st.end)+' · bitməsinə <strong>'+formatCountdown(remainSec)+'</strong></div>'+
+        '<div class="progress-track"><div class="progress-fill" style="width:'+pct+'%; background:'+m.color+'"></div></div></div>';
+    } else if(st.type==='upcoming'){
+      const m = meta(st.lesson.subject);
+      statusEl.style.setProperty('--sc', m.color);
+      const waitSec = (st.start-now)/1000;
+      const isSameDay = sameDate(st.dayDate, now);
+      const when = isSameDay ? ('bu gün saat '+st.lesson.time) : (DAY_NAMES[st.dayDate.getDay()].name+' saat '+st.lesson.time);
+      statusEl.innerHTML =
+        '<div class="dot free"></div>'+
+        '<div><div class="status-title">'+m.icon+' Sərbəst vaxt</div>'+
+        '<div class="status-sub">Növbəti: <strong>'+st.lesson.subject+'</strong> — '+when+'</div>'+
+        '<div class="status-sub">Başlamasına: <strong>'+formatCountdown(waitSec)+'</strong></div></div>';
+    } else {
+      statusEl.style.setProperty('--sc', '#8892A0');
+      statusEl.innerHTML = '<div class="status-title">Yaxın vaxtlarda dərs tapılmadı</div>';
+    }
+    assumptionEl.textContent = 'Standart dərs müddəti: '+settings.duration+' dəq · Ayarlar (⚙️) bölməsində dəyişdirilə bilər.';
+  }
+
+  function renderDayScroller(now){
+    dayScrollerEl.innerHTML = '';
+    const monday = getWeekMonday(startOfDay(now));
+    for(let i=0;i<7;i++){
+      const d = addDays(monday, i);
+      const idx = d.getDay();
+      const isToday = sameDate(d, now);
+      const isSel = sameDate(d, selectedDate);
+      const chip = document.createElement('div');
+      chip.className = 'day-chip' + (isSel?' active':'') + (isToday && !isSel ? ' is-today':'');
+      chip.innerHTML = '<div class="dow">'+DAY_NAMES[idx].short+'</div><div class="num">'+d.getDate()+'</div>';
+      chip.addEventListener('click', (function(dd){ return function(){ selectedDate = dd; renderSlow(); }; })(d));
+      dayScrollerEl.appendChild(chip);
+    }
+  }
+
+  function renderTodayAgenda(now){
+    const idx = selectedDate.getDay();
+    const list = (schedule[idx]||[]).slice().sort(function(a,b){ return toMin(a.time)-toMin(b.time); });
+    todayAgendaEl.innerHTML = '';
+    const dn = DAY_NAMES[idx];
+    const isToday = sameDate(selectedDate, now);
+
+    const headerRow = document.createElement('div');
+    headerRow.className = 'today-head-row';
+    headerRow.innerHTML = '<div class="today-head-label">'+dn.name+(isToday?' · bu gün':'')+'</div>' +
+      (!isToday ? '<button class="chip-btn" id="backTodayBtn">Bu günə qayıt</button>' : '');
+    todayAgendaEl.appendChild(headerRow);
+    if(!isToday){
+      document.getElementById('backTodayBtn').addEventListener('click', function(){
+        selectedDate = new Date();
+        renderSlow();
+      });
+    }
+
+    if(!list.length){
+      todayAgendaEl.insertAdjacentHTML('beforeend',
+        '<div class="tlesson"><div class="tinfo"><div class="tname" style="color:var(--muted)">Bu gün dərs yoxdur 🎉</div></div></div>');
+      return;
+    }
+
+    list.forEach(function(l){
+      const m = meta(l.subject);
+      const state = computeLessonState(selectedDate, l, now);
+      const row = document.createElement('div');
+      row.className = 'tlesson';
+      row.innerHTML =
+        '<div class="ticon" style="background:'+m.color+'22; color:'+m.color+'">'+m.icon+'</div>'+
+        '<div class="tinfo"><div class="tname">'+l.subject+'</div><div class="ttime">'+l.time+' · '+(l.duration||settings.duration)+' dəq</div></div>'+
+        '<div class="tstatus">'+statusControlHTML(state, idx, l.id)+'</div>';
+      todayAgendaEl.appendChild(row);
+    });
+  }
+
+  function renderAgenda(now){
+    agendaEl.innerHTML = '';
+    agendaEl.classList.toggle('edit-on', editMode);
+    const monday = getWeekMonday(startOfDay(now));
+
+    for(let offset=0; offset<7; offset++){
+      const dayDate = addDays(monday, offset);
+      const idx = dayDate.getDay();
+      const dn = DAY_NAMES[idx];
+      const lessons = (schedule[idx]||[]).slice().sort(function(a,b){ return toMin(a.time)-toMin(b.time); });
+      const isToday = sameDate(dayDate, now);
+      const nowMin = now.getHours()*60+now.getMinutes();
+
+      let blocks = '';
+      lessons.forEach(function(l){
+        const start = toMin(l.time), end = start + (l.duration||settings.duration||60);
+        const left = Math.max(0, (start-RANGE_START)/RANGE_TOTAL*100);
+        const width = Math.max(2, Math.min(100-left, (end-start)/RANGE_TOTAL*100));
+        const m = meta(l.subject);
+        blocks += '<div class="tl-block" style="left:'+left+'%; width:'+width+'%; background:'+m.color+'" title="'+l.subject+' '+l.time+'"></div>';
+      });
+      let nowLine = '';
+      if(isToday && nowMin>=RANGE_START && nowMin<=RANGE_END){
+        const left = (nowMin-RANGE_START)/RANGE_TOTAL*100;
+        nowLine = '<div class="tl-now" style="left:'+left+'%"></div>';
+      }
+
+      let rows = '';
+      if(lessons.length){
+        lessons.forEach(function(l){
+          const m = meta(l.subject);
+          const state = computeLessonState(dayDate, l, now);
+          rows += '<div class="lesson-row">'+
+            '<span class="ltime">'+l.time+'</span>'+
+            '<span class="licon">'+m.icon+'</span>'+
+            '<span class="lsubject">'+l.subject+'</span>'+
+            '<span class="lstatus-wrap">'+statusControlHTML(state, idx, l.id)+'</span>'+
+            '<span class="lesson-edit-icons">'+
+              '<button data-role="edit" data-day="'+idx+'" data-id="'+l.id+'" title="Redaktə et">✏️</button>'+
+              '<button data-role="delete" data-day="'+idx+'" data-id="'+l.id+'" title="Sil">🗑️</button>'+
+            '</span>'+
+            '</div>';
+        });
+      } else {
+        rows = '<div class="lesson-row muted">Dərs yoxdur</div>';
+      }
+      rows += '<button class="add-lesson-btn" data-role="add" data-day="'+idx+'">+ Dərs əlavə et</button>';
+
+      const card = document.createElement('div');
+      card.className = 'day-card' + (isToday ? ' today' : '');
+      card.innerHTML =
+        '<div class="day-header"><div><div class="day-name">'+dn.name+'</div><div class="day-sub">'+dn.alt+'</div></div>'+
+        (isToday ? '<span class="today-tag">bu gün</span>' : '') + '</div>'+
+        '<div class="timeline">'+blocks+nowLine+'</div>'+
+        '<div class="tl-ticks"><span>08:00</span><span>10:00</span><span>12:00</span><span>14:00</span><span>16:00</span><span>18:00</span></div>'+
+        '<div class="lessons">'+rows+'</div>';
+      agendaEl.appendChild(card);
+    }
+  }
+
+  function renderLegend(){
+    legendEl.innerHTML = SUBJECT_META.map(function(m){
+      return '<span><span class="dot" style="width:9px;height:9px;border-radius:50%;background:'+m.color+'"></span>'+m.icon+' '+m.label+'</span>';
+    }).join('');
+  }
+
+  function renderStats(now){
+    const monday = getWeekMonday(startOfDay(now));
+    let total=0, done=0, missed=0;
+    const subjectCounts = {};
+    for(let off=0; off<7; off++){
+      const d = addDays(monday, off);
+      const idx = d.getDay();
+      const list = schedule[idx]||[];
+      list.forEach(function(l){
+        total++;
+        const m = meta(l.subject);
+        if(!subjectCounts[m.label]) subjectCounts[m.label] = { total:0, done:0, color:m.color };
+        subjectCounts[m.label].total++;
+        const state = computeLessonState(d, l, now);
+        if(state==='done'){ done++; subjectCounts[m.label].done++; }
+        if(state==='missed'){ missed++; }
+      });
+    }
+    const remaining = total-done-missed;
+    statsSummaryEl.innerHTML =
+      '<div class="stat-box"><div class="num">'+total+'</div><div class="lbl">Dərs</div></div>'+
+      '<div class="stat-box"><div class="num">'+done+'</div><div class="lbl">Tamamlandı</div></div>'+
+      '<div class="stat-box"><div class="num">'+remaining+'</div><div class="lbl">Qalıb</div></div>';
+    const pct = total ? Math.round(done/total*100) : 0;
+    let html = '<div class="stats-progress"><div class="fill" style="width:'+pct+'%"></div></div>'+
+      '<div class="stats-progress-lbl">'+pct+'% tamamlanıb'+(missed?(' · '+missed+' buraxılıb'):'')+'</div>';
+    html += Object.keys(subjectCounts).map(function(label){
+      const v = subjectCounts[label];
+      const p = v.total ? Math.round(v.done/v.total*100) : 0;
+      return '<div class="subject-bar-row"><div class="lbl-row"><span>'+label+'</span><span>'+v.done+'/'+v.total+'</span></div>'+
+        '<div class="subject-bar-track"><div class="subject-bar-fill" style="width:'+p+'%; background:'+v.color+'"></div></div></div>';
+    }).join('');
+    statsSubjectsEl.innerHTML = html;
+  }
+
+  function renderSubjectDatalist(){
+    subjectListEl.innerHTML = SUBJECT_META.map(function(m){ return '<option value="'+m.label+'">'; }).join('');
+  }
+
+  function renderSlow(){
+    const now = new Date();
+    renderDayScroller(now);
+    renderTodayAgenda(now);
+    renderAgenda(now);
+    renderLegend();
+    if(currentTab==='stats') renderStats(now);
+  }
+
+  // ---- notifications ----
+  function checkNotifications(now){
+    if(!settings.notifications) return;
+    if(!('Notification' in window) || Notification.permission!=='granted') return;
+    const idx = now.getDay();
+    (schedule[idx]||[]).forEach(function(l){
+      const start = lessonDateTime(startOfDay(now), l.time);
+      const diffMin = Math.round((start-now)/60000);
+      const key10 = dateISO(now)+':'+l.id+':10';
+      const key0 = dateISO(now)+':'+l.id+':0';
+      if(diffMin===10 && !notifiedKeys.has(key10)){
+        notifiedKeys.add(key10);
+        try{ new Notification('10 dəqiqəyə dərs: '+l.subject, { body:'Saat '+l.time+'-də başlayır' }); }catch(e){}
+      }
+      if(diffMin===0 && !notifiedKeys.has(key0)){
+        notifiedKeys.add(key0);
+        try{ new Notification('Dərs başlayır: '+l.subject, { body:'İndi başladı' }); }catch(e){}
+      }
+    });
+  }
+
+  // ---- theme ----
+  function applyTheme(){
+    document.documentElement.setAttribute('data-theme', settings.theme);
+    themeBtn.textContent = settings.theme==='dark' ? '☀️' : '🌙';
+    if(themeColorMeta) themeColorMeta.content = settings.theme==='dark' ? '#14161C' : '#E4572E';
+  }
+
+  // ---- lesson modal ----
+  function openLessonModal(dayIdx, lessonId){
+    editingLessonRef = { dayIdx:dayIdx, lessonId:lessonId };
+    const isEdit = !!lessonId;
+    lessonModalTitle.textContent = isEdit ? 'Dərsi redaktə et' : 'Dərs əlavə et';
+    deleteLessonBtn.classList.toggle('hidden', !isEdit);
+    if(isEdit){
+      const l = (schedule[dayIdx]||[]).find(function(x){ return x.id===lessonId; });
+      lfSubject.value = l ? l.subject : '';
+      lfTime.value = l ? l.time : '09:00';
+      lfDuration.value = l ? (l.duration||settings.duration) : settings.duration;
+    } else {
+      lfSubject.value = '';
+      lfTime.value = '09:00';
+      lfDuration.value = settings.duration;
+    }
+    lessonOverlay.classList.remove('hidden');
+  }
+  function closeLessonModal(){
+    lessonOverlay.classList.add('hidden');
+    editingLessonRef = null;
+  }
+
+  // ---- event wiring ----
+  document.querySelectorAll('.tab').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      currentTab = btn.dataset.tab;
+      document.querySelectorAll('.tab').forEach(function(b){ b.classList.toggle('active', b===btn); });
+      document.getElementById('panel-home').classList.toggle('hidden', currentTab!=='home');
+      document.getElementById('panel-schedule').classList.toggle('hidden', currentTab!=='schedule');
+      document.getElementById('panel-stats').classList.toggle('hidden', currentTab!=='stats');
+      if(currentTab==='stats') renderStats(new Date());
+    });
+  });
+
+  editModeBtn.addEventListener('click', function(){
+    editMode = !editMode;
+    editModeBtn.classList.toggle('on', editMode);
+    editModeBtn.textContent = editMode ? '✓ Bitir' : '✏️ Redaktə';
+    renderAgenda(new Date());
+  });
+
+  themeBtn.addEventListener('click', function(){
+    settings.theme = settings.theme==='dark' ? 'light' : 'dark';
+    applyTheme();
+    saveSettings();
+  });
+
+  settingsBtn.addEventListener('click', function(){
+    durationSelect.value = settings.duration;
+    notifToggle.checked = settings.notifications;
+    settingsOverlay.classList.remove('hidden');
+  });
+  closeSettings.addEventListener('click', function(){ settingsOverlay.classList.add('hidden'); });
+  settingsOverlay.addEventListener('click', function(e){ if(e.target===settingsOverlay) settingsOverlay.classList.add('hidden'); });
+
+  durationSelect.addEventListener('change', function(e){
+    settings.duration = parseInt(e.target.value, 10);
+    saveSettings();
+    renderSlow();
+    renderHero(new Date());
+  });
+
+  notifToggle.addEventListener('change', function(e){
+    if(e.target.checked){
+      if(!('Notification' in window)){
+        alert('Bu brauzer bildirişləri dəstəkləmir');
+        e.target.checked = false;
+        return;
+      }
+      Notification.requestPermission().then(function(perm){
+        if(perm!=='granted'){
+          e.target.checked = false;
+          settings.notifications = false;
+          saveSettings();
+          alert('Bildiriş icazəsi verilmədi');
+        } else {
+          settings.notifications = true;
+          saveSettings();
+        }
+      });
+    } else {
+      settings.notifications = false;
+      saveSettings();
+    }
+  });
+
+  exportBtn.addEventListener('click', function(){
+    const data = { schedule:schedule, status:statusMap, settings:settings, exportedAt:new Date().toISOString(), version:APP_VERSION };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type:'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'ders-cedveli-'+dateISO(new Date())+'.json';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  });
+
+  importBtn.addEventListener('click', function(){ importInput.click(); });
+  importInput.addEventListener('change', function(e){
+    const file = e.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = function(ev){
+      try{
+        const data = JSON.parse(ev.target.result);
+        if(data.schedule) schedule = data.schedule;
+        if(data.status) statusMap = data.status;
+        if(data.settings) settings = Object.assign(settings, data.settings);
+        saveSchedule(); saveStatus(); saveSettings();
+        applyTheme();
+        renderSlow();
+        renderHero(new Date());
+        alert('Cədvəl uğurla idxal olundu');
+      }catch(err){
+        alert('Fayl oxunmadı — düzgün JSON formatında deyil');
+      }
+      importInput.value = '';
+    };
+    reader.readAsText(file);
+  });
+
+  resetBtn.addEventListener('click', function(){
+    if(confirm('Bütün fərdi dəyişikliklər (cədvəl, qeydlər, ayarlar) silinəcək. Davam edilsin?')){
+      localStorage.removeItem(STORAGE_KEYS.schedule);
+      localStorage.removeItem(STORAGE_KEYS.status);
+      localStorage.removeItem(STORAGE_KEYS.settings);
+      location.reload();
+    }
+  });
+
+  closeLesson.addEventListener('click', closeLessonModal);
+  lessonOverlay.addEventListener('click', function(e){ if(e.target===lessonOverlay) closeLessonModal(); });
+
+  saveLessonBtn.addEventListener('click', function(){
+    const subject = lfSubject.value.trim();
+    const time = lfTime.value;
+    const duration = parseInt(lfDuration.value, 10) || settings.duration;
+    if(!subject || !time){ alert('Fənn və vaxtı doldurun'); return; }
+    const dayIdx = editingLessonRef.dayIdx, lessonId = editingLessonRef.lessonId;
+    if(!schedule[dayIdx]) schedule[dayIdx] = [];
+    if(lessonId){
+      const l = schedule[dayIdx].find(function(x){ return x.id===lessonId; });
+      if(l){ l.subject=subject; l.time=time; l.duration=duration; }
+    } else {
+      schedule[dayIdx].push({ id:nextLessonId(), subject:subject, time:time, duration:duration });
+    }
+    saveSchedule();
+    closeLessonModal();
+    renderSlow();
+    renderHero(new Date());
+  });
+
+  deleteLessonBtn.addEventListener('click', function(){
+    const dayIdx = editingLessonRef.dayIdx, lessonId = editingLessonRef.lessonId;
+    if(confirm('Bu dərsi silmək istədiyinizə əminsiniz?')){
+      schedule[dayIdx] = (schedule[dayIdx]||[]).filter(function(x){ return x.id!==lessonId; });
+      saveSchedule();
+      closeLessonModal();
+      renderSlow();
+      renderHero(new Date());
+    }
+  });
+
+  // delegated clicks: today agenda (mark / reset)
+  todayAgendaEl.addEventListener('click', function(e){
+    const el = e.target.closest('[data-role]');
+    if(!el) return;
+    const role = el.dataset.role, id = el.dataset.id;
+    const dISO = dateISO(selectedDate);
+    if(role==='mark'){ setManualStatus(dISO, id, el.dataset.act); renderSlow(); }
+    else if(role==='reset'){ setManualStatus(dISO, id, null); renderSlow(); }
+  });
+
+  // delegated clicks: schedule agenda (mark / reset / edit / delete / add)
+  agendaEl.addEventListener('click', function(e){
+    const el = e.target.closest('[data-role]');
+    if(!el) return;
+    const role = el.dataset.role, day = parseInt(el.dataset.day,10), id = el.dataset.id;
+    if(role==='mark'){
+      const dISO = dateISO(dateForDayIdx(day, new Date()));
+      setManualStatus(dISO, id, el.dataset.act);
+      renderSlow();
+    } else if(role==='reset'){
+      const dISO = dateISO(dateForDayIdx(day, new Date()));
+      setManualStatus(dISO, id, null);
+      renderSlow();
+    } else if(role==='edit'){
+      openLessonModal(day, id);
+    } else if(role==='delete'){
+      if(confirm('Bu dərsi silmək istədiyinizə əminsiniz?')){
+        schedule[day] = (schedule[day]||[]).filter(function(x){ return x.id!==id; });
+        saveSchedule();
+        renderSlow();
+        renderHero(new Date());
+      }
+    } else if(role==='add'){
+      openLessonModal(day, null);
+    }
+  });
+
+  // ---- init ----
+  applyTheme();
+  renderSubjectDatalist();
+  renderHero(new Date());
+  renderSlow();
+  if(verTagEl) verTagEl.textContent = 'versiya ' + APP_VERSION;
+
+  setInterval(function(){ renderHero(new Date()); }, 1000);
+  setInterval(function(){
+    const now = new Date();
+    renderSlow();
+    checkNotifications(now);
+  }, 15000);
+
+  if('serviceWorker' in navigator){
+    window.addEventListener('load', function(){
+      navigator.serviceWorker.register('./sw.js').catch(function(){});
+    });
+  }
+
+</script>
+</body>
+</html>
