@@ -17,7 +17,7 @@
   /* ── VERSİYA SİSTEMİ ──
      Faylı yenilədikcə APP_VERSION-u dəyişin (məs. "3.1").
      Versiya dəyişəndə səhifə keşdən deyil, serverdən yenidən yüklənir. */
-  var APP_VERSION = "4.1";
+  var APP_VERSION = "5.0";
   (function(){
     try{
       var params = new URLSearchParams(location.search);
@@ -416,10 +416,58 @@
   .foot-note{
     text-align:center; color:var(--muted); font-size:.74rem; margin-top:24px;
   }
+
+  /* ---- Auth gate (giriş şlüzü) ---- */
+  .auth-gate{
+    position:fixed; inset:0; background:var(--bg); z-index:200;
+    display:flex; align-items:center; justify-content:center; padding:24px;
+  }
+  .gate-card{
+    background:var(--surface); border:1px solid var(--line); border-radius:22px;
+    padding:34px 26px; max-width:380px; width:100%; text-align:center;
+    box-shadow:0 1px 2px rgba(20,20,40,.05), 0 10px 28px rgba(20,20,40,.05);
+  }
+  .gate-icon{ font-size:2.2rem; margin-bottom:10px; }
+  .gate-title{ font-size:1.3rem; font-weight:600; margin-bottom:8px; }
+  .gate-text{ color:var(--muted); font-size:.88rem; line-height:1.6; margin-bottom:20px; }
+  .gate-profile{
+    display:flex; align-items:center; gap:12px; text-align:left;
+    background:var(--bg); border-radius:14px; padding:12px 14px; margin-bottom:18px;
+  }
+  .gate-hint{
+    margin-top:14px; font-size:.76rem; color:var(--muted);
+    background:var(--bg); border-radius:10px; padding:10px 12px; line-height:1.6;
+  }
+  .gate-actions{ display:flex; flex-direction:column; gap:10px; }
 </style>
 </head>
 <body>
-<div class="wrap">
+
+<!-- Auth gate: hesaba qədər heç bir cədvəl görünmür -->
+<div class="auth-gate" id="authGate">
+  <div class="gate-card">
+    <div class="gate-icon" id="gateIcon">🔒</div>
+    <div class="gate-title display" id="gateTitle">Yüklənir…</div>
+    <div class="gate-text" id="gateText">Bir neçə saniyə gözləyin.</div>
+    <div class="gate-profile hidden" id="gateProfile">
+      <div class="account-avatar" id="gateAvatar">👤</div>
+      <div style="flex:1; min-width:0">
+        <div class="account-name" id="gateName"></div>
+        <div class="account-mail" id="gateMail"></div>
+      </div>
+    </div>
+    <div class="gate-actions">
+      <button class="btn-google hidden" id="gateSignInBtn">
+        <svg width="16" height="16" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+        Google ilə daxil ol
+      </button>
+      <button class="btn-secondary hidden" id="gateSignOutBtn">Çıxış / başqa hesab</button>
+    </div>
+    <div class="gate-hint hidden" id="gateHint"></div>
+  </div>
+</div>
+
+<div class="wrap hidden" id="appWrap">
 
   <div class="app-header">
     <div class="app-title display">Dərs Bələdçisi</div>
@@ -487,11 +535,7 @@
     </div>
     <div class="sync-line"><span class="sync-dot" id="syncDot"></span><span id="syncText">Yoxlanılır…</span></div>
     <div class="modal-actions">
-      <button class="btn-google" id="signInBtn">
-        <svg width="16" height="16" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
-        Google ilə daxil ol
-      </button>
-      <button class="btn-secondary hidden" id="signOutBtn">Çıxış</button>
+      <button class="btn-secondary" id="signOutBtn">Çıxış</button>
     </div>
 
     <div class="settings-group-title">Ümumi</div>
@@ -1134,10 +1178,7 @@
     }
   });
 
-  userBtn.addEventListener('click', function(){
-    if(typeof window.SQ_signIn === 'function') window.SQ_signIn();
-    else settingsBtn.click();
-  });
+  userBtn.addEventListener('click', function(){ settingsBtn.click(); });
 
   closeLesson.addEventListener('click', closeLessonModal);
   lessonOverlay.addEventListener('click', function(e){ if(e.target===lessonOverlay) closeLessonModal(); });
@@ -1252,13 +1293,16 @@
   renderSlow();
   if(verTagEl) verTagEl.textContent = 'versiya ' + APP_VERSION;
 
-  // Firebase modulu yüklənməsə (internet yoxdur / CDN əlçatmazdır) istifadəçi bunu görsün.
+  // Firebase modulu yüklənməsə (internet yoxdur / CDN əlçatmazdır) giriş şlüzü bunu göstərsin.
+  // Tətbiq yalnız giriş modulu təsdiq verəndə açılır, ona görə bu, "oflayn rejim" deyil, tıxanma xətasıdır.
   setTimeout(function(){
-    if(typeof window.SQ_signIn !== 'function'){
-      const dot = document.getElementById('syncDot');
-      const txt = document.getElementById('syncText');
-      if(dot) dot.className = 'sync-dot err';
-      if(txt) txt.textContent = 'Bulud xidmətinə qoşulmaq alınmadı — oflayn rejim';
+    if(!window.SQ_authInited){
+      const gi = document.getElementById('gateIcon');
+      const gt = document.getElementById('gateTitle');
+      const gx = document.getElementById('gateText');
+      if(gi) gi.textContent = '⚠️';
+      if(gt) gt.textContent = 'Qoşulma alınmadı';
+      if(gx) gx.textContent = 'Giriş xidmətinə qoşulmaq mümkün olmadı. İnterneti yoxlayıb səhifəni yeniləyin.';
     }
   }, 8000);
 
@@ -1307,12 +1351,26 @@ const userBtn   = document.getElementById('userBtn');
 const accAvatar = document.getElementById('accAvatar');
 const accName   = document.getElementById('accName');
 const accMail   = document.getElementById('accMail');
-const signInBtn = document.getElementById('signInBtn');
 const signOutBtn= document.getElementById('signOutBtn');
 const syncDot   = document.getElementById('syncDot');
 const syncText  = document.getElementById('syncText');
 
-let unsubscribe = null;
+const authGate      = document.getElementById('authGate');
+const appWrap       = document.getElementById('appWrap');
+const gateIcon      = document.getElementById('gateIcon');
+const gateTitle     = document.getElementById('gateTitle');
+const gateText      = document.getElementById('gateText');
+const gateProfile   = document.getElementById('gateProfile');
+const gateAvatar    = document.getElementById('gateAvatar');
+const gateName      = document.getElementById('gateName');
+const gateMail      = document.getElementById('gateMail');
+const gateSignInBtn = document.getElementById('gateSignInBtn');
+const gateSignOutBtn= document.getElementById('gateSignOutBtn');
+const gateHint      = document.getElementById('gateHint');
+
+let unsubscribe = null;      // users/{uid}/data canlı dinləməsi
+let allowUnsub = null;       // allowlist/{uid} canlı dinləməsi
+let dataSyncStarted = false; // yalnız icazəli istifadəçi üçün true olur
 let applyingRemote = false;
 let pushTimer = null;
 
@@ -1339,19 +1397,15 @@ function avatarNode(user){
 
 function renderUser(user){
   accAvatar.replaceChildren(avatarNode(user));
-  userBtn.replaceChildren(avatarNode(user));
-  userBtn.classList.toggle('signed', !!user);
   if(user){
+    userBtn.replaceChildren(avatarNode(user));
+    userBtn.classList.add('signed');
     accName.textContent = user.displayName || 'İstifadəçi';
     accMail.textContent = user.email || '';
-    signInBtn.classList.add('hidden');
-    signOutBtn.classList.remove('hidden');
   } else {
     accName.textContent = 'Daxil olmayıb';
-    accMail.textContent = 'Məlumatlar yalnız bu cihazda saxlanılır';
-    signInBtn.classList.remove('hidden');
-    signOutBtn.classList.add('hidden');
-    setSync('', 'Buludla sinxronlaşdırılmır');
+    accMail.textContent = '';
+    setSync('', '');
   }
 }
 
@@ -1361,23 +1415,65 @@ function applyRemote(data){
   finally{ applyingRemote = false; }
 }
 
+// ---- gate ekranı ----
+function showGate(state, user){
+  window.SQ_authInited = true;
+  authGate.classList.remove('hidden');
+  appWrap.classList.add('hidden');
+  if(state === 'pending'){
+    gateIcon.textContent = '⏳';
+    gateTitle.textContent = 'Təsdiq gözlənilir';
+    gateText.textContent = 'Hesabınız qeydə alınıb, lakin girişə hələ icazə verilməyib.';
+    gateProfile.classList.remove('hidden');
+    gateAvatar.replaceChildren(avatarNode(user));
+    gateName.textContent = user.displayName || 'İstifadəçi';
+    gateMail.textContent = user.email || '';
+    gateSignInBtn.classList.add('hidden');
+    gateSignOutBtn.classList.remove('hidden');
+    gateHint.classList.remove('hidden');
+    gateHint.textContent = 'Admin bu hesaba icazə verdikdən sonra səhifə avtomatik açılacaq. Yenidən yükləməyə ehtiyac yoxdur.';
+  } else {
+    gateIcon.textContent = '🔒';
+    gateTitle.textContent = 'Giriş tələb olunur';
+    gateText.textContent = 'Cədvələ baxmaq və redaktə etmək üçün Google hesabınızla daxil olun.';
+    gateProfile.classList.add('hidden');
+    gateSignInBtn.classList.remove('hidden');
+    gateSignOutBtn.classList.add('hidden');
+    gateHint.classList.add('hidden');
+  }
+}
+function setGateError(title, text){
+  window.SQ_authInited = true;
+  authGate.classList.remove('hidden');
+  appWrap.classList.add('hidden');
+  gateIcon.textContent = '⚠️';
+  gateTitle.textContent = title;
+  gateText.textContent = text;
+  gateProfile.classList.add('hidden');
+  gateSignInBtn.classList.remove('hidden');
+  gateSignOutBtn.classList.add('hidden');
+  gateHint.classList.add('hidden');
+}
+function hideGate(){
+  window.SQ_authInited = true;
+  authGate.classList.add('hidden');
+  appWrap.classList.remove('hidden');
+}
+
 function handleAuthError(err){
   const code = (err && err.code) || '';
   if(code === 'auth/unauthorized-domain'){
-    setSync('err', 'Domen icazəli deyil');
-    alert('Bu domen Firebase-də icazəli deyil.\n\nFirebase Console → Authentication → Settings → Authorized domains bölməsinə əlavə edin:\n' + location.hostname);
+    setGateError('Domen icazəli deyil', 'Bu domen (' + location.hostname + ') Firebase-də icazəli deyil. Admin Firebase Console → Authentication → Settings → Authorized domains bölməsinə əlavə etməlidir.');
     return;
   }
-  setSync('err', 'Giriş alınmadı');
-  alert('Giriş alınmadı: ' + ((err && err.message) || code));
+  setGateError('Giriş alınmadı', (err && err.message) || code || 'Naməlum xəta');
 }
 
+// Popup əvəzinə redirect: GitHub Pages kimi xarici domenlərdə brauzerlər
+// (Safari ITP, Firefox ETP) popup ilə əsas səhifə arasında storage
+// paylaşımını bloklayır və giriş pəncərəsi açılıb dərhal bağlanır.
 async function doSignIn(){
-  // Popup əvəzinə redirect: GitHub Pages kimi xarici domenlərdə brauzerlər
-  // (Safari ITP, Firefox ETP) popup ilə əsas səhifə arasında storage
-  // paylaşımını bloklayır və giriş pəncərəsi açılıb dərhal bağlanır.
   try{
-    setSync('busy', 'Giriş edilir…');
     await setPersistence(auth, browserLocalPersistence);
     await signInWithRedirect(auth, provider);
   }catch(err){
@@ -1385,23 +1481,22 @@ async function doSignIn(){
   }
 }
 
-signInBtn.addEventListener('click', doSignIn);
-
-signOutBtn.addEventListener('click', async function(){
-  if(!confirm('Hesabdan çıxmaq istəyirsiniz? Məlumatlar bu cihazda qalacaq.')) return;
+async function doSignOut(){
+  if(!confirm('Hesabdan çıxmaq istəyirsiniz?')) return;
   if(unsubscribe){ unsubscribe(); unsubscribe = null; }
+  if(allowUnsub){ allowUnsub(); allowUnsub = null; }
+  dataSyncStarted = false;
   try{ await signOut(auth); }catch(err){ setSync('err','Çıxış alınmadı'); }
-});
+}
 
-window.SQ_signIn = function(){
-  if(auth.currentUser) window.SQ.openSettings();
-  else doSignIn();
-};
+gateSignInBtn.addEventListener('click', doSignIn);
+gateSignOutBtn.addEventListener('click', doSignOut);
+signOutBtn.addEventListener('click', doSignOut);
 
-// Lokal dəyişiklik → buluda yaz (debounce ilə).
+// Lokal dəyişiklik → buluda yaz (debounce ilə). Yalnız icazəli girişdən sonra aktivdir.
 window.SQ_onLocalChange = function(){
   const user = auth.currentUser;
-  if(!user || applyingRemote) return;
+  if(!user || !dataSyncStarted || applyingRemote) return;
   setSync('busy', 'Saxlanılır…');
   clearTimeout(pushTimer);
   pushTimer = setTimeout(function(){
@@ -1414,53 +1509,89 @@ window.SQ_onLocalChange = function(){
 // Sıfırlama buluddakı nüsxəni də silir.
 window.SQ_onReset = function(){
   const user = auth.currentUser;
-  if(!user) return Promise.resolve();
+  if(!user || !dataSyncStarted) return Promise.resolve();
   if(unsubscribe){ unsubscribe(); unsubscribe = null; }
   clearTimeout(pushTimer);
   return set(dataRefFor(user.uid), null);
 };
 
-renderUser(null);
-setSync('busy', 'Yoxlanılır…');
-getRedirectResult(auth).catch(handleAuthError);
-
-onAuthStateChanged(auth, async function(user){
-  if(unsubscribe){ unsubscribe(); unsubscribe = null; }
-  renderUser(user);
-  if(!user) return;
-
+function startDataSync(user){
+  if(dataSyncStarted) return;
+  dataSyncStarted = true;
   const dataRef = dataRefFor(user.uid);
   setSync('busy', 'Sinxronlaşdırılır…');
-
-  // İlk birləşdirmə: hansı nüsxə daha təzədirsə, o qalır.
-  try{
-    const snap = await get(dataRef);
-    const local = window.SQ.getSnapshot();
-    if(!snap.exists()){
-      await set(dataRef, local);
-    } else {
-      const remote = snap.val() || {};
-      const rt = remote.updatedAt || 0, lt = local.updatedAt || 0;
-      if(rt > lt) applyRemote(remote);
-      else if(lt > rt) await set(dataRef, local);
+  (async function(){
+    // İlk birləşdirmə: hansı nüsxə daha təzədirsə, o qalır.
+    try{
+      const snap = await get(dataRef);
+      const local = window.SQ.getSnapshot();
+      if(!snap.exists()){
+        await set(dataRef, local);
+      } else {
+        const remote = snap.val() || {};
+        const rt = remote.updatedAt || 0, lt = local.updatedAt || 0;
+        if(rt > lt) applyRemote(remote);
+        else if(lt > rt) await set(dataRef, local);
+      }
+      setSync('ok', 'Sinxronlaşdırıldı · '+timeNow());
+    }catch(err){
+      setSync('err', 'Sinxronizasiya xətası');
+      console.error(err);
     }
-    setSync('ok', 'Sinxronlaşdırıldı · '+timeNow());
-  }catch(err){
-    setSync('err', 'Sinxronizasiya xətası');
-    console.error(err);
+
+    // Digər cihazlardakı dəyişikliklər üçün canlı dinləmə.
+    unsubscribe = onValue(dataRef, function(snap){
+      const remote = snap.val();
+      if(!remote) return;
+      if((remote.updatedAt || 0) > window.SQ.getUpdatedAt()){
+        applyRemote(remote);
+        setSync('ok', 'Yeniləndi · '+timeNow());
+      }
+    }, function(err){
+      setSync('err', 'Bağlantı xətası');
+      console.error(err);
+    });
+  })();
+}
+
+renderUser(null);
+showGate('signedout');
+getRedirectResult(auth).catch(handleAuthError);
+
+onAuthStateChanged(auth, function(user){
+  if(unsubscribe){ unsubscribe(); unsubscribe = null; }
+  if(allowUnsub){ allowUnsub(); allowUnsub = null; }
+  dataSyncStarted = false;
+  renderUser(user);
+
+  if(!user){
+    showGate('signedout');
+    return;
   }
 
-  // Digər cihazlardakı dəyişikliklər üçün canlı dinləmə.
-  unsubscribe = onValue(dataRef, function(snap){
-    const remote = snap.val();
-    if(!remote) return;
-    if((remote.updatedAt || 0) > window.SQ.getUpdatedAt()){
-      applyRemote(remote);
-      setSync('ok', 'Yeniləndi · '+timeNow());
+  // Öz sorğu qeydini yazır ki, admin kimin girişini gözlədiyini görsün.
+  // Bu, allowlist-dən asılı olmayaraq həmişə icazəlidir (bax: database.rules.json).
+  set(ref(db, 'requests/'+user.uid), {
+    email: user.email || null,
+    name: user.displayName || null,
+    lastSeenAt: Date.now()
+  }).catch(function(err){ console.error('request write failed', err); });
+
+  showGate('pending', user); // allowlist cavabı gələnə qədər defolt görünüş
+
+  // İcazə statusuna canlı qulaq asırıq — admin təsdiq versə, səhifə avtomatik açılır.
+  allowUnsub = onValue(ref(db, 'allowlist/'+user.uid), function(snap){
+    if(snap.val() === true){
+      hideGate();
+      startDataSync(user);
+    } else {
+      if(unsubscribe){ unsubscribe(); unsubscribe = null; }
+      dataSyncStarted = false;
+      showGate('pending', user);
     }
   }, function(err){
-    setSync('err', 'Bağlantı xətası');
     console.error(err);
+    showGate('pending', user);
   });
 });
 </script>

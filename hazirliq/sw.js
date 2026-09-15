@@ -1,5 +1,5 @@
 // Kеşin versiyasını index.html-dəki APP_VERSION ilə birlikdə dəyişin.
-const CACHE_NAME = 'ders-cedveli-cache-v4-1';
+const CACHE_NAME = 'ders-cedveli-cache-v5-0';
 const ASSETS = ['./index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', (event) => {

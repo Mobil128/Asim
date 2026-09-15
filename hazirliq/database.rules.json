@@ -1,9 +1,21 @@
 {
   "rules": {
-    "users": {
+    "requests": {
       "$uid": {
         ".read": "auth != null && auth.uid === $uid",
         ".write": "auth != null && auth.uid === $uid"
+      }
+    },
+    "allowlist": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": false
+      }
+    },
+    "users": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid && root.child('allowlist').child($uid).val() === true",
+        ".write": "auth != null && auth.uid === $uid && root.child('allowlist').child($uid).val() === true"
       }
     }
   }
