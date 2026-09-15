@@ -1281,7 +1281,7 @@
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
 import {
-  getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult,
+  getAuth, GoogleAuthProvider, signInWithRedirect, getRedirectResult,
   signOut, onAuthStateChanged, setPersistence, browserLocalPersistence
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
 import { getDatabase, ref, get, set, onValue } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
@@ -1311,9 +1311,6 @@ const signInBtn = document.getElementById('signInBtn');
 const signOutBtn= document.getElementById('signOutBtn');
 const syncDot   = document.getElementById('syncDot');
 const syncText  = document.getElementById('syncText');
-
-// Popup standalone PWA-da (xüsusən iOS) işləmir — orada birbaşa redirect istifadə edirik.
-const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
 
 let unsubscribe = null;
 let applyingRemote = false;
@@ -1366,14 +1363,6 @@ function applyRemote(data){
 
 function handleAuthError(err){
   const code = (err && err.code) || '';
-  if(code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request'){
-    setSync('', 'Giriş ləğv edildi');
-    return;
-  }
-  if(code === 'auth/popup-blocked' || code === 'auth/operation-not-supported-in-this-environment'){
-    signInWithRedirect(auth, provider).catch(handleAuthError);
-    return;
-  }
   if(code === 'auth/unauthorized-domain'){
     setSync('err', 'Domen icazəli deyil');
     alert('Bu domen Firebase-də icazəli deyil.\n\nFirebase Console → Authentication → Settings → Authorized domains bölməsinə əlavə edin:\n' + location.hostname);
@@ -1384,11 +1373,13 @@ function handleAuthError(err){
 }
 
 async function doSignIn(){
+  // Popup əvəzinə redirect: GitHub Pages kimi xarici domenlərdə brauzerlər
+  // (Safari ITP, Firefox ETP) popup ilə əsas səhifə arasında storage
+  // paylaşımını bloklayır və giriş pəncərəsi açılıb dərhal bağlanır.
   try{
     setSync('busy', 'Giriş edilir…');
     await setPersistence(auth, browserLocalPersistence);
-    if(isStandalone){ await signInWithRedirect(auth, provider); return; }
-    await signInWithPopup(auth, provider);
+    await signInWithRedirect(auth, provider);
   }catch(err){
     handleAuthError(err);
   }
