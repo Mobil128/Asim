@@ -17,7 +17,7 @@
   /* ── VERSİYA SİSTEMİ ──
      Faylı yenilədikcə APP_VERSION-u dəyişin (məs. "3.1").
      Versiya dəyişəndə səhifə keşdən deyil, serverdən yenidən yüklənir. */
-  var APP_VERSION = "5.1";
+  var APP_VERSION = "5.2";
   (function(){
     try{
       var params = new URLSearchParams(location.search);
@@ -563,7 +563,7 @@
       <button class="chip-btn" id="importBtn">Seç</button>
     </div>
     <div class="settings-row">
-      <span>Bütün fərdi dəyişiklikləri sıfırla</span>
+      <span>Ortaq cədvəli hamı üçün sıfırla</span>
       <button class="btn-danger" id="resetBtn">Sıfırla</button>
     </div>
 
@@ -1165,7 +1165,7 @@
   });
 
   resetBtn.addEventListener('click', function(){
-    if(confirm('Bütün fərdi dəyişikliklər (cədvəl, qeydlər, ayarlar) silinəcək. Hesaba daxil olmusunuzsa, buluddakı nüsxə də silinir. Davam edilsin?')){
+    if(confirm('Bu, BÜTÜN AİLƏNİN ortaq cədvəlini, qeydlərini və ayarlarını siləcək — dəyişiklik hər kəsin ekranında görünəcək. Davam edilsin?')){
       localStorage.removeItem(STORAGE_KEYS.schedule);
       localStorage.removeItem(STORAGE_KEYS.status);
       localStorage.removeItem(STORAGE_KEYS.settings);
@@ -1368,7 +1368,7 @@ const gateSignInBtn = document.getElementById('gateSignInBtn');
 const gateSignOutBtn= document.getElementById('gateSignOutBtn');
 const gateHint      = document.getElementById('gateHint');
 
-let unsubscribe = null;      // users/{uid}/data canlı dinləməsi
+let unsubscribe = null;      // shared/data canlı dinləməsi (bütün ailə üçün ortaq)
 let allowUnsub = null;       // allowlist/{uid} canlı dinləməsi
 let dataSyncStarted = false; // yalnız icazəli istifadəçi üçün true olur
 let applyingRemote = false;
@@ -1376,7 +1376,8 @@ let pushTimer = null;
 
 function pad2(n){ return n<10 ? '0'+n : ''+n; }
 function timeNow(){ const d=new Date(); return pad2(d.getHours())+':'+pad2(d.getMinutes()); }
-function dataRefFor(uid){ return ref(db, 'users/'+uid+'/data'); }
+// Bütün icazəli istifadəçilər eyni cədvələ baxır və onu redaktə edir — hər kəs üçün ayrı nüsxə yoxdur.
+function sharedDataRef(){ return ref(db, 'shared/data'); }
 
 function setSync(state, text){
   syncDot.className = 'sync-dot' + (state ? ' '+state : '');
@@ -1515,25 +1516,25 @@ window.SQ_onLocalChange = function(){
   setSync('busy', 'Saxlanılır…');
   clearTimeout(pushTimer);
   pushTimer = setTimeout(function(){
-    set(dataRefFor(user.uid), window.SQ.getSnapshot())
+    set(sharedDataRef(), window.SQ.getSnapshot())
       .then(function(){ setSync('ok', 'Sinxronlaşdırıldı · '+timeNow()); })
       .catch(function(err){ setSync('err', 'Saxlanmadı'); console.error(err); });
   }, 700);
 };
 
-// Sıfırlama buluddakı nüsxəni də silir.
+// Sıfırlama BÜTÜN AİLƏNİN ortaq cədvəlini siləcək — təsdiq mesajında bu aydın deyilir.
 window.SQ_onReset = function(){
   const user = auth.currentUser;
   if(!user || !dataSyncStarted) return Promise.resolve();
   if(unsubscribe){ unsubscribe(); unsubscribe = null; }
   clearTimeout(pushTimer);
-  return set(dataRefFor(user.uid), null);
+  return set(sharedDataRef(), null);
 };
 
 function startDataSync(user){
   if(dataSyncStarted) return;
   dataSyncStarted = true;
-  const dataRef = dataRefFor(user.uid);
+  const dataRef = sharedDataRef();
   setSync('busy', 'Sinxronlaşdırılır…');
   (async function(){
     // İlk birləşdirmə: hansı nüsxə daha təzədirsə, o qalır.

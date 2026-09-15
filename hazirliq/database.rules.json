@@ -12,10 +12,10 @@
         ".write": false
       }
     },
-    "users": {
-      "$uid": {
-        ".read": "auth != null && auth.uid === $uid && root.child('allowlist').child($uid).val() === true",
-        ".write": "auth != null && auth.uid === $uid && root.child('allowlist').child($uid).val() === true"
+    "shared": {
+      "data": {
+        ".read": "auth != null && root.child('allowlist').child(auth.uid).val() === true",
+        ".write": "auth != null && root.child('allowlist').child(auth.uid).val() === true"
       }
     }
   }
